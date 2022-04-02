@@ -19,6 +19,9 @@ public:
   //Returns true if gltf loading succeeds.
   bool loadGltfFile(tinygltf::Model &model);
 
+  //Create Buffer Ojects from glTF model
+  std::vector<GLuint> createBufferObjects(const tinygltf::Model &model);
+
 private:
   // A range of indices in a vector containing Vertex Array Objects
   struct VaoRange
