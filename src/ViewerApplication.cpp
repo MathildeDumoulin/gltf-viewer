@@ -59,14 +59,14 @@ int ViewerApplication::run()
   }
 
   tinygltf::Model model;
-  // TODO Loading the glTF file
+  // Loading the glTF file
   if (!loadGltfFile(model))
     throw std::exception("Unable to load glTF model");
 
-  // TODO Creation of Buffer Objects
+  // Creation of Buffer Objects
   auto bufferObjects = createBufferObjects(model);
 
-  // TODO Creation of Vertex Array Objects
+  // Creation of Vertex Array Objects
   std::vector<VaoRange> meshToVA;
   auto vertexArrayObjects = createVertexArrayObjects(model, bufferObjects, meshToVA);
 
