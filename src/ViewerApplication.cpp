@@ -10,6 +10,7 @@
 
 #include "utils/cameras.hpp"
 #include "utils/gltf.hpp"
+#include "utils/images.hpp"
 
 #include <stb_image_write.h>
 #include <tiny_gltf.h>
@@ -123,13 +124,36 @@ int ViewerApplication::run()
             }
             glBindVertexArray(0);
           }
+          for(const auto childNodeIdx : node.children){
+            drawNode(childNodeIdx, modelMatrix);
+          }
         };
 
     // Draw the scene referenced by gltf file
     if (model.defaultScene >= 0) {
-      // TODO Draw all nodes
+      // Draw all nodes
+      const auto &nodes = model.scenes[model.defaultScene].nodes;
+      for(const auto &nodeIdx : nodes){
+        drawNode(nodeIdx, glm::mat4(1));
+      }
     }
   };
+
+  //Rendering image (png)
+  if(!m_OutputPath.empty()){
+    std::vector<unsigned char> pixels(m_nWindowWidth * m_nWindowHeight * 3);
+    renderToImage(m_nWindowWidth, m_nWindowHeight, 3, pixels.data(), [&]() {
+      const auto camera = cameraController.getCamera();
+      drawScene(camera);
+    });
+
+    flipImageYAxis(m_nWindowWidth, m_nWindowHeight, 3, pixels.data()); //conventional since OpenGL has different image axis management
+
+    const auto strPath = m_OutputPath.string();
+    stbi_write_png(strPath.c_str(), m_nWindowWidth, m_nWindowHeight, 3, pixels.data(), 0);
+
+    return 0;
+  }
 
   // Loop until the user closes the window
   for (auto iterationCount = 0u; !m_GLFWHandle.shouldClose();
