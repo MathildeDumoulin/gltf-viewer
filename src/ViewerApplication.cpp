@@ -9,6 +9,7 @@
 #include <glm/gtx/io.hpp>
 
 #include "utils/cameras.hpp"
+#include "utils/gltf.hpp"
 
 #include <stb_image_write.h>
 #include <tiny_gltf.h>
@@ -85,7 +86,43 @@ int ViewerApplication::run()
     // We use a std::function because a simple lambda cannot be recursive
     const std::function<void(int, const glm::mat4 &)> drawNode =
         [&](int nodeIdx, const glm::mat4 &parentMatrix) {
-          // TODO The drawNode function
+          auto &node = model.nodes[nodeIdx];
+          const glm::mat4 modelMatrix = getLocalToWorldMatrix(node, parentMatrix);
+
+          //if node references a mesh
+          if(node.mesh >= 0){
+            //compute corresponding matrices, local to camera, local to screen, normal matrix
+            const auto modelViewMatrix = viewMatrix * modelMatrix;
+            const auto modelViewProjectionMatrix = projMatrix * modelViewMatrix;
+            const auto normalMatrix = glm::transpose(glm::inverse(modelViewMatrix));
+
+            //Get matrices to GPU
+            glUniformMatrix4fv(modelViewMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelMatrix));
+            glUniformMatrix4fv(modelViewProjMatrixLocation, 1, GL_FALSE, glm::value_ptr(modelViewProjectionMatrix));
+            glUniformMatrix4fv(normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+            //Draw every single primitive of the mesh
+            const auto &mesh = model.meshes[node.mesh];
+            const auto &vaoRange = meshToVA[node.mesh];
+
+            for(size_t prIdx = 0; prIdx < mesh.primitives.size(); ++prIdx){
+              const auto vao = vertexArrayObjects[vaoRange.begin + prIdx];
+              const auto &primitive = mesh.primitives[prIdx];
+              glBindVertexArray(vao);
+              //for those with IBO
+              if(primitive.indices >= 0){
+                const auto &accessor = model.accessors[primitive.indices];
+                const auto &bufferView = model.bufferViews[accessor.bufferView];
+                const auto byteOffset = accessor.byteOffset + bufferView.byteOffset;
+                glDrawElements(primitive.mode, GLsizei(accessor.count), accessor.componentType, (const GLvoid*)byteOffset);
+              }else{ //without IBO
+                const auto accessorIdx = (*begin(primitive.attributes)).second;
+                const auto &accessor = model.accessors[accessorIdx];
+                glDrawArrays(primitive.mode, 0, GLsizei(accessor.count));
+              }
+            }
+            glBindVertexArray(0);
+          }
         };
 
     // Draw the scene referenced by gltf file
