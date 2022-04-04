@@ -107,4 +107,101 @@ bool FirstPersonCameraController::update(float elapsedTime)
   return true;
 }
 
-bool TrackballCameraController::update(float elapsedTime) { return false; }
+bool TrackballCameraController::update(float elapsedTime) 
+{
+  //Check on mouse middle button
+  if(glfwGetMouseButton(m_pWindow, GLFW_MOUSE_BUTTON_MIDDLE) && !m_MiddleButtonPressed){
+    m_MiddleButtonPressed = true;
+    glfwGetCursorPos(m_pWindow, &m_LastCursorPosition.x, &m_LastCursorPosition.y);
+  } 
+  else if (!glfwGetMouseButton(m_pWindow, GLFW_MOUSE_BUTTON_MIDDLE) && m_MiddleButtonPressed){
+    m_MiddleButtonPressed = false;
+  }
+
+  //Return false if not pressed
+  if(!m_MiddleButtonPressed)
+    return false;
+
+  //Mouse offset
+  const auto cursorDelta = ([&]() {
+    if (m_MiddleButtonPressed){
+      dvec2 cursorPosition;
+      glfwGetCursorPos(m_pWindow, &cursorPosition.x, &cursorPosition.y);
+      const auto delta = cursorPosition - m_LastCursorPosition;
+      m_LastCursorPosition = cursorPosition;
+      return delta;
+    }
+    return dvec2(0);
+  })();
+
+  /*
+  //Compute offsets
+  float offsetX = static_cast<float>(cursorDelta.x * m_fSpeed * elapsedTime);
+  float offsetY = static_cast<float>(cursorDelta.y * m_fSpeed * elapsedTime);
+
+  //Pedestal move
+  if(glfwGetKey(m_pWindow, GLFW_KEY_LEFT_SHIFT)){
+   m_camera.moveLocal(offsetX, offsetY, 0);
+  }*/
+
+  //PAN
+   if (glfwGetKey(m_pWindow, GLFW_KEY_LEFT_SHIFT)) {
+    const auto truckLeft = 0.01f * float(cursorDelta.x);
+    const auto pedestalUp = 0.01f * float(cursorDelta.y);
+    const auto hasMoved = truckLeft || pedestalUp;
+    if (!hasMoved) {
+      return false;
+    }
+
+    m_camera.moveLocal(truckLeft, pedestalUp, 0.f);
+
+    return true;
+  }
+
+  //ZOOM
+  if (glfwGetKey(m_pWindow, GLFW_KEY_LEFT_CONTROL)) {
+    auto mouseOffset = 0.01f * float(cursorDelta.x);
+    if (mouseOffset == 0.f) {
+      return false;
+    }
+
+    const auto viewVector = m_camera.center() - m_camera.eye();
+    const auto l = glm::length(viewVector);
+    if (mouseOffset > 0.f) {
+      mouseOffset = glm::min(mouseOffset, l - 1e-4f);
+    }
+    // Normalize view vector for the translation
+    const auto front = viewVector / l;
+    const auto translationVector = mouseOffset * front;
+
+    // Update camera with new eye position
+    const auto newEye = m_camera.eye() + translationVector;
+    m_camera = Camera(newEye, m_camera.center(), m_worldUpAxis);
+
+    return true;
+  }
+    
+  //Rotate around target
+  const auto latitudeAngle = -0.01f * float(cursorDelta.y);
+  const auto longitudeAngle = 0.01f * float(cursorDelta.x); 
+  const auto hasMoved = latitudeAngle || longitudeAngle;
+  if(!hasMoved){
+    return false;
+  }
+
+  // We need to rotate eye around center, for that we rotate the vector [center,
+  // eye] (= depthAxis) in order to compute a new eye position
+  const auto depthAxis = m_camera.eye() - m_camera.center();
+
+  const auto latitudeRotationMatrix = rotate(mat4(1), latitudeAngle, m_worldUpAxis);
+
+  const auto horizontalAxis = m_camera.left();
+  const auto rotationMatrix = rotate(latitudeRotationMatrix, longitudeAngle, horizontalAxis);
+  auto rotatedDepthAxis = vec3(rotationMatrix * vec4(depthAxis, 0));
+
+  // Update camera with new eye position
+  const auto newEye = m_camera.center() + rotatedDepthAxis;
+  m_camera = Camera(newEye, m_camera.center(), m_worldUpAxis);
+  return true;
+  
+}
