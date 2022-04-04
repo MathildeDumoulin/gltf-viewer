@@ -41,25 +41,6 @@ int ViewerApplication::run()
   const auto normalMatrixLocation =
       glGetUniformLocation(glslProgram.glId(), "uNormalMatrix");
 
-  // Build projection matrix
-  auto maxDistance = 500.f; // TODO use scene bounds instead to compute this
-  maxDistance = maxDistance > 0.f ? maxDistance : 100.f;
-  const auto projMatrix =
-      glm::perspective(70.f, float(m_nWindowWidth) / m_nWindowHeight,
-          0.001f * maxDistance, 1.5f * maxDistance);
-
-  // TODO Implement a new CameraController model and use it instead. Propose the
-  // choice from the GUI
-  FirstPersonCameraController cameraController{
-      m_GLFWHandle.window(), 0.5f * maxDistance};
-  if (m_hasUserCamera) {
-    cameraController.setCamera(m_userCamera);
-  } else {
-    // TODO Use scene bounds to compute a better default camera
-    cameraController.setCamera(
-        Camera{glm::vec3(0, 0, 0), glm::vec3(0, 0, -1), glm::vec3(0, 1, 0)});
-  }
-
   tinygltf::Model model;
   // Loading the glTF file
   if (!loadGltfFile(model))
@@ -71,6 +52,32 @@ int ViewerApplication::run()
   // Creation of Vertex Array Objects
   std::vector<VaoRange> meshToVA;
   auto vertexArrayObjects = createVertexArrayObjects(model, bufferObjects, meshToVA);
+
+  // Scene bounding box
+  glm::vec3 bboxMin, bboxMax;
+  computeSceneBounds(model, bboxMin, bboxMax);
+
+  // Build projection matrix
+  // Using scene bounds
+  const auto diagonal = bboxMax - bboxMin;
+  auto maxDist = glm::length(diagonal);
+  const auto projMatrix =
+      glm::perspective(70.f, float(m_nWindowWidth) / m_nWindowHeight,
+          0.001f * maxDist, 1.5f * maxDist);
+
+  // TODO Implement a new CameraController model and use it instead. Propose the
+  // choice from the GUI
+  FirstPersonCameraController cameraController{
+      m_GLFWHandle.window(), 0.5f * maxDist};
+  if (m_hasUserCamera) {
+    cameraController.setCamera(m_userCamera);
+  } else {
+    // Using scene bounds to compute a better default camera
+    const auto center = 0.5f * (bboxMax + bboxMin);
+    const auto up = glm::vec3(0 , 1 , 0);
+    const auto eye = diagonal.z > 0.f ? center + diagonal : center + 2.f * glm::cross(diagonal, up);
+    cameraController.setCamera(Camera(eye, center, up));
+  }
 
   // Setup OpenGL state for rendering
   glEnable(GL_DEPTH_TEST);
