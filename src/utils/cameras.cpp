@@ -182,8 +182,8 @@ bool TrackballCameraController::update(float elapsedTime)
   }
     
   //Rotate around target
-  const auto latitudeAngle = -0.01f * float(cursorDelta.y);
-  const auto longitudeAngle = 0.01f * float(cursorDelta.x); 
+  const auto latitudeAngle = -0.01f * float(cursorDelta.x);
+  const auto longitudeAngle = 0.01f * float(cursorDelta.y); 
   const auto hasMoved = latitudeAngle || longitudeAngle;
   if(!hasMoved){
     return false;
