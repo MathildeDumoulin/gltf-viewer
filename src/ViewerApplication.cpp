@@ -230,8 +230,30 @@ int ViewerApplication::run()
             cameraController = std::make_unique<FirstPersonCameraController>(m_GLFWHandle.window(), 0.5f * maxDist);
           }
           cameraController->setCamera(currentCamera);
-        }
+        }       
       }
+
+      if(ImGui::CollapsingHeader(("Sun"), ImGuiTreeNodeFlags_DefaultOpen)){
+          static float theta = 0.f;
+          static float phi = 0.f;
+
+          if (ImGui::SliderFloat("theta", &theta, 0, glm::pi<float>()) ||
+            ImGui::SliderFloat("phi", &phi, 0, 2.f * glm::pi<float>())) {
+              const auto sinPhi = glm::sin(phi);
+              const auto cosPhi = glm::cos(phi);
+              const auto sinTheta = glm::sin(theta);
+              const auto cosTheta = glm::cos(theta);
+              lightDirection = glm::vec3(sinTheta * cosPhi, cosTheta, sinTheta * sinPhi);
+          }
+
+          glm::vec3 lightColor(1.f, 1.f, 1.f);
+          float lightIntensityFactor = 1.f;
+
+          if(ImGui::InputFloat("intensity",&lightIntensityFactor) || ImGui::ColorEdit3("color", (float *)&lightColor)){
+            lightIntensity = lightIntensityFactor * lightColor;
+          }
+
+        }         
       ImGui::End();
     }
 
