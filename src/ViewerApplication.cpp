@@ -46,6 +46,7 @@ int ViewerApplication::run()
   //Init light parameters
   glm::vec3 lightDirection(1,1,1);
   glm::vec3 lightIntensity(1,1,1);
+  bool lightFromCamera = false;
 
   tinygltf::Model model;
   // Loading the glTF file
@@ -97,7 +98,10 @@ int ViewerApplication::run()
 
     const auto viewMatrix = camera.getViewMatrix();
 
-    if(uLightDirectionLocation >= 0){
+    if(lightFromCamera){
+      glUniform3f(uLightDirectionLocation, 0, 0, 1);
+    }
+    else{
       const auto lightDirectionViewSpace = glm::normalize(glm::vec3(viewMatrix * glm::vec4(lightDirection,0.)));
       glUniform3f(uLightDirectionLocation, lightDirectionViewSpace[0], lightDirectionViewSpace[1], lightDirectionViewSpace[2]);
     }
@@ -105,6 +109,7 @@ int ViewerApplication::run()
     if(uLightIntensity >= 0){
       glUniform3f(uLightIntensity, lightIntensity[0], lightIntensity[1], lightIntensity[2]);
     }
+
 
     // The recursive function that should draw a node
     // We use a std::function because a simple lambda cannot be recursive
@@ -252,7 +257,7 @@ int ViewerApplication::run()
           if(ImGui::InputFloat("intensity",&lightIntensityFactor) || ImGui::ColorEdit3("color", (float *)&lightColor)){
             lightIntensity = lightIntensityFactor * lightColor;
           }
-
+          ImGui::Checkbox("Light from camera", &lightFromCamera);
         }         
       ImGui::End();
     }
