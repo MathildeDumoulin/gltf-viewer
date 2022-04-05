@@ -53,6 +53,23 @@ int ViewerApplication::run()
   if (!loadGltfFile(model))
     throw std::exception("Unable to load glTF model");
 
+  //Load textures
+  const auto textureObjects = createTextureObjects(model);
+
+  //Default white texture
+  float white[] = {1,1,1,1};
+  GLuint whiteTexture;
+  glGenTextures(1, &whiteTexture);
+  glBindTexture(GL_TEXTURE_2D, whiteTexture);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_FLOAT, white);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+  glBindTexture(GL_TEXTURE_2D, 0);
+
   // Creation of Buffer Objects
   auto bufferObjects = createBufferObjects(model);
 
@@ -456,6 +473,50 @@ std::vector<GLuint> ViewerApplication::createVertexArrayObjects(
   }
   glBindVertexArray(0);
   return vertexArrayObjects;
+}
+
+std::vector<GLuint> ViewerApplication::createTextureObjects(const tinygltf::Model &model) const {
+  //Texture identifiers
+  std::vector<GLuint> textureObjects(model.textures.size(), 0);
+  glGenTextures(GLsizei(textureObjects.size()), &textureObjects[0]);
+
+  //Default sampler
+  tinygltf::Sampler defaultSampler;
+  defaultSampler.minFilter = GL_LINEAR;
+  defaultSampler.magFilter = GL_LINEAR;
+  defaultSampler.wrapS = GL_REPEAT;
+  defaultSampler.wrapT = GL_REPEAT;
+  defaultSampler.wrapR = GL_REPEAT;
+
+  //Loop each texture
+  for(size_t i = 0; i < model.textures.size(); ++i){
+    const auto &texture = model.textures[i]; //get texture
+    assert(texture.source >= 0);
+    const auto &image = model.images[texture.source]; 
+    //get matching sampler or default sampler
+    const auto &sampler = texture.sampler >= 0 ? model.samplers[texture.sampler] : defaultSampler;
+
+    if (sampler.minFilter == GL_NEAREST_MIPMAP_NEAREST ||
+        sampler.minFilter == GL_NEAREST_MIPMAP_LINEAR ||
+        sampler.minFilter == GL_LINEAR_MIPMAP_NEAREST ||
+        sampler.minFilter == GL_LINEAR_MIPMAP_LINEAR) {
+      glGenerateMipmap(GL_TEXTURE_2D);
+    }
+
+    //Bind texture object to target
+    glBindTexture(GL_TEXTURE_2D, textureObjects[i]);
+    //Image data Setting
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, image.pixel_type, image.image.data());
+    //Sampling parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler.minFilter != -1 ? sampler.minFilter : GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter != -1 ? sampler.magFilter : GL_LINEAR);
+    //Wrapping parameters
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler.wrapS);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler.wrapT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, sampler.wrapR);
+  }
+  glBindTexture(GL_TEXTURE_2D, 0);
+  return textureObjects;
 }
 
 
