@@ -200,6 +200,22 @@ int ViewerApplication::run()
           const auto str = ss.str();
           glfwSetClipboardString(m_GLFWHandle.window(), str.c_str());
         }
+
+        static int cameraType = 0;
+        const auto trackBallRadioButton = ImGui::RadioButton("Trackball Camera", &cameraType, 0);
+        ImGui::SameLine(); 
+        const auto firstPersonRadioButton = ImGui::RadioButton("First Person Camera", &cameraType, 1);
+
+        const bool cameraTypeChanged = trackBallRadioButton || firstPersonRadioButton;
+        if(cameraTypeChanged){
+          const auto currentCamera = cameraController->getCamera();
+          if(cameraType == 0){
+            cameraController = std::make_unique<TrackballCameraController>(m_GLFWHandle.window(), 0.5f * maxDist);
+          }else{
+            cameraController = std::make_unique<FirstPersonCameraController>(m_GLFWHandle.window(), 0.5f * maxDist);
+          }
+          cameraController->setCamera(currentCamera);
+        }
       }
       ImGui::End();
     }
