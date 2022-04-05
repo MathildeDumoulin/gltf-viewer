@@ -40,6 +40,12 @@ int ViewerApplication::run()
       glGetUniformLocation(glslProgram.glId(), "uModelViewMatrix");
   const auto normalMatrixLocation =
       glGetUniformLocation(glslProgram.glId(), "uNormalMatrix");
+  const auto uLightDirectionLocation = glGetUniformLocation(glslProgram.glId(), "uLightDirection");
+  const auto uLightIntensity = glGetUniformLocation(glslProgram.glId(), "uLightIntensity");
+
+  //Init light parameters
+  glm::vec3 lightDirection(1,1,1);
+  glm::vec3 lightIntensity(1,1,1);
 
   tinygltf::Model model;
   // Loading the glTF file
@@ -90,6 +96,15 @@ int ViewerApplication::run()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     const auto viewMatrix = camera.getViewMatrix();
+
+    if(uLightDirectionLocation >= 0){
+      const auto lightDirectionViewSpace = glm::normalize(glm::vec3(viewMatrix * glm::vec4(lightDirection,0.)));
+      glUniform3f(uLightDirectionLocation, lightDirectionViewSpace[0], lightDirectionViewSpace[1], lightDirectionViewSpace[2]);
+    }
+
+    if(uLightIntensity >= 0){
+      glUniform3f(uLightIntensity, lightIntensity[0], lightIntensity[1], lightIntensity[2]);
+    }
 
     // The recursive function that should draw a node
     // We use a std::function because a simple lambda cannot be recursive
