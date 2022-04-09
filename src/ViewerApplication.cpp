@@ -444,7 +444,7 @@ std::vector<GLuint> ViewerApplication::createVertexArrayObjects(
       }
 
       {//TEXCOORD
-        const auto iterator = primitive.attributes.find("TEXCOORD0");
+        const auto iterator = primitive.attributes.find("TEXCOORD_0");
         if(iterator != end(primitive.attributes)){
           const auto accessorIdx = (*iterator).second;
           const auto &accessor = model.accessors[accessorIdx];
