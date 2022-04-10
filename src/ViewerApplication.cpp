@@ -41,23 +41,32 @@ int ViewerApplication::run()
   const auto normalMatrixLocation =
       glGetUniformLocation(glslProgram.glId(), "uNormalMatrix");
 
+  //Light & base color
   const auto uLightDirectionLocation = glGetUniformLocation(glslProgram.glId(), "uLightDirection");
   const auto uLightIntensity = glGetUniformLocation(glslProgram.glId(), "uLightIntensity");
   const auto uBaseColorTexture = glGetUniformLocation(glslProgram.glId(), "uBaseColorTexture");
   const auto uBaseColorFactor = glGetUniformLocation(glslProgram.glId(), "uBaseColorFactor");
 
+  //Metallic
   const auto uMetallicRoughness = glGetUniformLocation(glslProgram.glId(), "uMetallicRoughnessTexture");
   const auto uMetallicFactor = glGetUniformLocation(glslProgram.glId(), "uMetallicFactor");
   const auto uRoughnessFactor = glGetUniformLocation(glslProgram.glId(), "uRoughnessFactor");
 
+  //Emission
   const auto uEmissiveTexture = glGetUniformLocation(glslProgram.glId(), "uEmissiveTexture");
   const auto uEmissiveFactor = glGetUniformLocation(glslProgram.glId(), "uEmissiveFactor");
+
+  //Occlusion
+  const auto uOcclusionTexture = glGetUniformLocation(glslProgram.glId(), "uOcclusionTexture");
+  const auto uOcclusionStrength = glGetUniformLocation(glslProgram.glId(), "uOcclusionStrength");
+  const auto uApplyOcclusion = glGetUniformLocation(glslProgram.glId(), "uApplyOcclusion");
 
 
   //Init light parameters
   glm::vec3 lightDirection(1,1,1);
   glm::vec3 lightIntensity(1,1,1);
   bool lightFromCamera = false;
+  bool applyOcclusion = true;
 
   tinygltf::Model model;
   // Loading the glTF file
@@ -187,6 +196,23 @@ int ViewerApplication::run()
         glUniform1i(uEmissiveTexture, 2);
       }
 
+      if (uOcclusionStrength >= 0) {
+        glUniform1f(
+            uOcclusionStrength, (float)material.occlusionTexture.strength);
+      }
+      if (uOcclusionTexture >= 0) {
+        auto textureObject = whiteTexture;
+        if (material.occlusionTexture.index >= 0) {
+          const auto &texture = model.textures[material.occlusionTexture.index];
+          if (texture.source >= 0) {
+            textureObject = textureObjects[texture.source];
+          }
+        }
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, textureObject);
+        glUniform1i(uOcclusionTexture, 3);
+      }
+
     } else {
       if (uBaseColorFactor >= 0) {
         glUniform4f(uBaseColorFactor, 1, 1, 1, 1);
@@ -209,7 +235,15 @@ int ViewerApplication::run()
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, 0);
         glUniform1i(uEmissiveTexture, 2);
-      }      
+      }  
+      if (uOcclusionStrength >= 0) {
+        glUniform1f(uOcclusionStrength, 0.f);
+      }
+      if (uOcclusionTexture >= 0) {
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUniform1i(uOcclusionTexture, 3);
+      }
     }
   };
 
@@ -232,6 +266,9 @@ int ViewerApplication::run()
       glUniform3f(uLightIntensity, lightIntensity[0], lightIntensity[1], lightIntensity[2]);
     }
 
+    if (uApplyOcclusion >= 0) {
+      glUniform1i(uApplyOcclusion, applyOcclusion);
+    }
 
     // The recursive function that should draw a node
     // We use a std::function because a simple lambda cannot be recursive
@@ -382,6 +419,7 @@ int ViewerApplication::run()
           if(ImGui::InputFloat("intensity",&lightIntensityFactor) || ImGui::ColorEdit3("color", (float *)&lightColor)){
             lightIntensity = lightIntensityFactor * lightColor;
           }
+          ImGui::Checkbox("Occlusion", &applyOcclusion);
           ImGui::Checkbox("Light from camera", &lightFromCamera);
         }         
       ImGui::End();
