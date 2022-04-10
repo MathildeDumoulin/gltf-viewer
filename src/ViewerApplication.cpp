@@ -115,7 +115,19 @@ int ViewerApplication::run()
     if (materialIndex >= 0) {
       const auto &material = model.materials[materialIndex];
       const auto &pbrMetallicRoughness = material.pbrMetallicRoughness;
+      if (uBaseColorFactor >= 0) {
+        glUniform4f(uBaseColorFactor,
+            (float)pbrMetallicRoughness.baseColorFactor[0],
+            (float)pbrMetallicRoughness.baseColorFactor[1],
+            (float)pbrMetallicRoughness.baseColorFactor[2],
+            (float)pbrMetallicRoughness.baseColorFactor[3]);
+      }
+      
+      //Set Material to white
       if (uBaseColorTexture >= 0) {
+        if (uBaseColorFactor >= 0) {
+          glUniform4f(uBaseColorFactor, 1, 1, 1, 1);
+        }
         auto textureObject = whiteTexture;
         if (pbrMetallicRoughness.baseColorTexture.index >= 0) {
           const auto &texture =
@@ -533,6 +545,7 @@ std::vector<GLuint> ViewerApplication::createTextureObjects(const tinygltf::Mode
     glBindTexture(GL_TEXTURE_2D, textureObjects[i]);
     //Image data Setting
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image.width, image.height, 0, GL_RGBA, image.pixel_type, image.image.data());
+
     //Sampling parameters
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, sampler.minFilter != -1 ? sampler.minFilter : GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, sampler.magFilter != -1 ? sampler.magFilter : GL_LINEAR);
