@@ -203,11 +203,13 @@ int ViewerApplication::run()
   // Loop until the user closes the window
   for (auto iterationCount = 0u; !m_GLFWHandle.shouldClose();
        ++iterationCount) {
+         
     const auto seconds = glfwGetTime();
 
     const auto camera = cameraController->getCamera();
     drawScene(camera);
 
+    
     // GUI code:
     imguiNewFrame();
 
@@ -280,6 +282,7 @@ int ViewerApplication::run()
     }
 
     imguiRenderFrame();
+    
 
     glfwPollEvents(); // Poll for and process events
 
@@ -291,7 +294,9 @@ int ViewerApplication::run()
     }
 
     m_GLFWHandle.swapBuffers(); // Swap front and back buffers
+    
   }
+  
 
   // TODO clean up allocated GL data
 
@@ -388,14 +393,13 @@ std::vector<GLuint> ViewerApplication::createVertexArrayObjects(
   //Loop on all meshes
   for(size_t i = 0; i < model.meshes.size(); ++i)
   {
-    const auto &mesh = model.meshes[i];
-    auto &vaoRange = meshToVA[i];
+    tinygltf::Mesh mesh = model.meshes[i];
+    VaoRange &vaoRange = meshToVA[i];
 
     vaoRange.begin = static_cast<GLsizei>(vertexArrayObjects.size());
     vaoRange.count = static_cast<GLsizei>(mesh.primitives.size());
 
-    vertexArrayObjects.resize(vertexArrayObjects.size() + mesh.primitives.size());
-
+    vertexArrayObjects.resize(vertexArrayObjects.size() + model.meshes[i].primitives.size());
     glGenVertexArrays(vaoRange.count, &vertexArrayObjects[vaoRange.begin]);
 
     //Loop on the primitives of the current mesh
@@ -443,27 +447,28 @@ std::vector<GLuint> ViewerApplication::createVertexArrayObjects(
         }
       }
 
-      {//TEXCOORD
-        const auto iterator = primitive.attributes.find("TEXCOORD_0");
-        if(iterator != end(primitive.attributes)){
+      {const auto iterator = primitive.attributes.find("TEXCOORD_0");
+        if (iterator != end(primitive.attributes)) {
           const auto accessorIdx = (*iterator).second;
           const auto &accessor = model.accessors[accessorIdx];
           const auto &bufferView = model.bufferViews[accessor.bufferView];
           const auto bufferIdx = bufferView.buffer;
+          const auto bufferObject = model.buffers[bufferIdx];
 
           glEnableVertexAttribArray(VERTEX_ATTRIB_TEXCOORD0_IDX);
-          glBindBuffer(GL_ARRAY_BUFFER, bufferObjects[bufferIdx]);
+
+          glBindBuffer(GL_ARRAY_BUFFER,bufferObjects[bufferIdx]);
+          assert(GL_ARRAY_BUFFER == bufferView.target);
 
           const auto byteOffset = accessor.byteOffset + bufferView.byteOffset;
-          glVertexAttribPointer(VERTEX_ATTRIB_NORMAL_IDX, accessor.type,
-            accessor.componentType, GL_FALSE, GLsizei(bufferView.byteStride),
-            (const GLvoid *)(accessor.byteOffset + bufferView.byteOffset));
+          glVertexAttribPointer(VERTEX_ATTRIB_TEXCOORD0_IDX, accessor.type,
+              accessor.componentType, GL_FALSE, GLsizei(bufferView.byteStride),
+              (const GLvoid *)byteOffset);
         }
       }
-
-      //If index array defined, set index buffer
-      if(primitive.indices >= 0){
-        const auto &accessor = model.accessors[primitive.indices];
+      if (model.meshes[i].primitives[pIdx].indices >= 0) {
+        const auto accessorIdx = model.meshes[i].primitives[pIdx].indices;
+        const auto &accessor = model.accessors[accessorIdx];
         const auto &bufferView = model.bufferViews[accessor.bufferView];
         const auto bufferIdx = bufferView.buffer;
 
@@ -471,7 +476,6 @@ std::vector<GLuint> ViewerApplication::createVertexArrayObjects(
       }
     }
   }
-  glBindVertexArray(0);
   return vertexArrayObjects;
 }
 
@@ -496,13 +500,6 @@ std::vector<GLuint> ViewerApplication::createTextureObjects(const tinygltf::Mode
     //get matching sampler or default sampler
     const auto &sampler = texture.sampler >= 0 ? model.samplers[texture.sampler] : defaultSampler;
 
-    if (sampler.minFilter == GL_NEAREST_MIPMAP_NEAREST ||
-        sampler.minFilter == GL_NEAREST_MIPMAP_LINEAR ||
-        sampler.minFilter == GL_LINEAR_MIPMAP_NEAREST ||
-        sampler.minFilter == GL_LINEAR_MIPMAP_LINEAR) {
-      glGenerateMipmap(GL_TEXTURE_2D);
-    }
-
     //Bind texture object to target
     glBindTexture(GL_TEXTURE_2D, textureObjects[i]);
     //Image data Setting
@@ -514,6 +511,13 @@ std::vector<GLuint> ViewerApplication::createTextureObjects(const tinygltf::Mode
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sampler.wrapS);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, sampler.wrapT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, sampler.wrapR);
+
+    if (sampler.minFilter == GL_NEAREST_MIPMAP_NEAREST ||
+        sampler.minFilter == GL_NEAREST_MIPMAP_LINEAR ||
+        sampler.minFilter == GL_LINEAR_MIPMAP_NEAREST ||
+        sampler.minFilter == GL_LINEAR_MIPMAP_LINEAR) {
+      glGenerateMipmap(GL_TEXTURE_2D);
+    }
   }
   glBindTexture(GL_TEXTURE_2D, 0);
   return textureObjects;
