@@ -42,6 +42,9 @@ int ViewerApplication::run()
       glGetUniformLocation(glslProgram.glId(), "uNormalMatrix");
   const auto uLightDirectionLocation = glGetUniformLocation(glslProgram.glId(), "uLightDirection");
   const auto uLightIntensity = glGetUniformLocation(glslProgram.glId(), "uLightIntensity");
+   const auto uBaseColorTexture = glGetUniformLocation(glslProgram.glId(), "uBaseColorTexture");
+  const auto uBaseColorFactor = glGetUniformLocation(glslProgram.glId(), "uBaseColorFactor");
+
 
   //Init light parameters
   glm::vec3 lightDirection(1,1,1);
@@ -108,6 +111,33 @@ int ViewerApplication::run()
   glEnable(GL_DEPTH_TEST);
   glslProgram.use();
 
+  const auto bindMaterial = [&](const auto materialIndex) {
+    if (materialIndex >= 0) {
+      const auto &material = model.materials[materialIndex];
+      const auto &pbrMetallicRoughness = material.pbrMetallicRoughness;
+      if (uBaseColorTexture >= 0) {
+        auto textureObject = whiteTexture;
+        if (pbrMetallicRoughness.baseColorTexture.index >= 0) {
+          const auto &texture =
+              model.textures[pbrMetallicRoughness.baseColorTexture.index];
+          if (texture.source >= 0) {
+            textureObject = textureObjects[texture.source];
+          }
+        }
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textureObject);
+        glUniform1i(uBaseColorTexture, 0);
+      }
+    } else {
+      if (uBaseColorTexture >= 0) {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, whiteTexture);
+        glUniform1i(uBaseColorTexture, 0);
+      }
+    }
+  };
+
+
   // Lambda function to draw the scene
   const auto drawScene = [&](const Camera &camera) {
     glViewport(0, 0, m_nWindowWidth, m_nWindowHeight);
@@ -154,6 +184,7 @@ int ViewerApplication::run()
             for(size_t prIdx = 0; prIdx < mesh.primitives.size(); ++prIdx){
               const auto vao = vertexArrayObjects[vaoRange.begin + prIdx];
               const auto &primitive = mesh.primitives[prIdx];
+              bindMaterial(primitive.material);
               glBindVertexArray(vao);
               //for those with IBO
               if(primitive.indices >= 0){
@@ -296,8 +327,6 @@ int ViewerApplication::run()
     m_GLFWHandle.swapBuffers(); // Swap front and back buffers
     
   }
-  
-
   // TODO clean up allocated GL data
 
   return 0;
