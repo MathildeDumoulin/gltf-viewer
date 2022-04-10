@@ -50,6 +50,10 @@ int ViewerApplication::run()
   const auto uMetallicFactor = glGetUniformLocation(glslProgram.glId(), "uMetallicFactor");
   const auto uRoughnessFactor = glGetUniformLocation(glslProgram.glId(), "uRoughnessFactor");
 
+  const auto uEmissiveTexture = glGetUniformLocation(glslProgram.glId(), "uEmissiveTexture");
+  const auto uEmissiveFactor = glGetUniformLocation(glslProgram.glId(), "uEmissiveFactor");
+
+
   //Init light parameters
   glm::vec3 lightDirection(1,1,1);
   glm::vec3 lightIntensity(1,1,1);
@@ -163,20 +167,51 @@ int ViewerApplication::run()
             textureObject = textureObjects[texture.source];
           }
         }
-
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, textureObject);
-        glUniform1i(uMetallicRoughness, 1);
       }
+
+      if (uEmissiveFactor >= 0) {
+        glUniform3f(uEmissiveFactor, (float)material.emissiveFactor[0],
+            (float)material.emissiveFactor[1],
+            (float)material.emissiveFactor[2]);
+      }
+      if (uEmissiveTexture >= 0) {
+        auto textureObject = 0u;
+        if (material.emissiveTexture.index >= 0) {
+          const auto &texture = model.textures[material.emissiveTexture.index];
+          if (texture.source >= 0) {
+            textureObject = textureObjects[texture.source];
+          }
+        }
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, textureObject);
+        glUniform1i(uEmissiveTexture, 2);
+      }
+
     } else {
+      if (uBaseColorFactor >= 0) {
+        glUniform4f(uBaseColorFactor, 1, 1, 1, 1);
+      }
       if (uBaseColorTexture >= 0) {
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, whiteTexture);
         glUniform1i(uBaseColorTexture, 0);
       }
+      if (uMetallicFactor >= 0) {
+        glUniform1f(uMetallicFactor, 1.f);
+      }
+      if (uRoughnessFactor >= 0) {
+        glUniform1f(uRoughnessFactor, 1.f);
+      }
+      if (uEmissiveFactor >= 0) {
+        glUniform3f(uEmissiveFactor, 0.f, 0.f, 0.f);
+      }
+      if (uEmissiveTexture >= 0) {
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUniform1i(uEmissiveTexture, 2);
+      }      
     }
   };
-
 
   // Lambda function to draw the scene
   const auto drawScene = [&](const Camera &camera) {
